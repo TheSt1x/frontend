@@ -3,107 +3,280 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frontend 1.0 — отправка данных на бэкенд</title>
+  <title>Frontend 2.0 — отправка и чтение</title>
   <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1e4fbf;
+      --ok: #15803d;
+      --err: #b91c1c;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      max-width: 560px;
+      background: var(--bg);
+      max-width: 720px;
       margin: 40px auto;
       padding: 0 16px;
+      color: #0f172a;
     }
-    h1 { font-size: 22px; }
-    input[type="text"] {
+    h1 { font-size: 22px; margin-bottom: 24px; }
+    h2 { font-size: 16px; margin: 0 0 12px; color: #334155; }
+
+    .block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .block-header h2 { margin: 0; }
+
+    input[type="text"], textarea {
       width: 100%;
       padding: 10px 12px;
       font-size: 15px;
-      border: 1px solid #ccc;
+      border: 1px solid #cbd5e1;
       border-radius: 6px;
-      box-sizing: border-box;
+      font-family: inherit;
+      transition: border-color .15s;
     }
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    input[readonly] { background: #f1f5f9; color: var(--muted); }
+    textarea {
+      min-height: 140px;
+      font-family: ui-monospace, Consolas, monospace;
+      resize: vertical;
+      white-space: pre;
+    }
+
+    .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     button {
-      margin-top: 10px;
       padding: 10px 18px;
       font-size: 15px;
       border: none;
       border-radius: 6px;
-      background: #2563eb;
+      background: var(--primary);
       color: #fff;
       cursor: pointer;
+      transition: background .15s;
     }
-    button:hover { background: #1e4fbf; }
+    button:hover:not(:disabled) { background: var(--primary-hover); }
     button:disabled { background: #94a3b8; cursor: not-allowed; }
-    #status {
-      margin-top: 16px;
-      min-height: 20px;
+    button.secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    button.secondary:hover:not(:disabled) { background: #cbd5e1; }
+
+    p.status {
+      margin: 12px 0 0;
       font-family: ui-monospace, Consolas, monospace;
-      font-size: 14px;
-      white-space: pre-wrap;
+      font-size: 13px;
+      min-height: 18px;
       word-break: break-word;
     }
-    .ok { color: #15803d; }
-    .err { color: #b91c1c; }
+    p.status.ok  { color: var(--ok); }
+    p.status.err { color: var(--err); }
+    p.status.loading { color: var(--muted); }
+
+    .meta {
+      display: flex;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .meta span strong { color: #334155; font-weight: 600; }
   </style>
 </head>
 <body>
-  <h1>Отправка текста на сервер</h1>
+  <h1>Frontend 2.0</h1>
 
-  <input id="textInput" type="text" placeholder="Введите текст..." />
-  <button id="sendBtn">Отправить</button>
-  <p id="status"></p>
+  <!-- Блок отправки -->
+  <div class="block">
+    <div class="block-header">
+      <h2>Отправка данных</h2>
+    </div>
+    <input id="textInput" type="text" placeholder="Введите текст..." />
+    <div class="row">
+      <button id="submitBtn">Отправить</button>
+    </div>
+    <p id="submitStatus" class="status"></p>
+  </div>
+
+  <!-- Блок чтения -->
+  <div class="block">
+    <div class="block-header">
+      <h2>Чтение данных из файла</h2>
+    </div>
+    <input id="readInput" type="text"
+           placeholder="Нажмите «Прочитать», чтобы получить содержимое data.txt"
+           readonly />
+    <div class="row">
+      <button id="readBtn">Прочитать</button>
+      <button id="copyBtn" class="secondary">Копировать</button>
+    </div>
+    <p>Содержимое data.txt:</p>
+    <textarea id="fileContent" readonly
+              placeholder="Здесь появится содержимое файла..."></textarea>
+    <div class="meta" id="fileMeta" hidden>
+      <span>Строк: <strong id="metaLines">0</strong></span>
+      <span>Символов: <strong id="metaChars">0</strong></span>
+      <span>Размер: <strong id="metaSize">0</strong> Б</span>
+      <span>Изменён: <strong id="metaModified">—</strong></span>
+    </div>
+  </div>
 
   <script>
-    const API_URL = "http://127.0.0.1:5000/submit";
+    const API_URL  = "http://127.0.0.1:5000/submit";
+    const READ_URL = "http://127.0.0.1:5000/read";
 
-    const input  = document.getElementById("textInput");
-    const button = document.getElementById("sendBtn");
-    const status = document.getElementById("status");
+    const $ = (id) => document.getElementById(id);
 
-    function setStatus(message, kind = "") {
-      status.textContent = message;
-      status.className = kind; // "ok" | "err" | ""
+    // ---------- Утилита: статус с классом ----------
+    function setStatus(el, message, kind = "") {
+      el.textContent = message;
+      el.className = "status" + (kind ? " " + kind : "");
     }
 
-    async function sendText() {
-      const text = input.value.trim();
+    // ---------- Утилита: fetch с таймаутом ----------
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
 
-      // Проверка: пустое поле — запрос не отправляем
-      if (text === "") {
-        setStatus("Введите текст!", "err");
+    // ---------- Отправка данных ----------
+    $("submitBtn").addEventListener("click", async () => {
+      const input  = $("textInput");
+      const status = $("submitStatus");
+      const btn    = $("submitBtn");
+      const text   = input.value.trim();
+
+      if (!text) {
+        setStatus(status, "Введите текст!", "err");
+        input.focus();
         return;
       }
 
-      button.disabled = true;
-      setStatus("Отправка...");
+      btn.disabled = true;
+      setStatus(status, "Отправка...", "loading");
 
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetchWithTimeout(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text }),
         });
 
+        const data = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-          throw new Error(`Сервер вернул ${response.status}`);
+          throw new Error(data.message || `Сервер вернул ${response.status}`);
         }
 
-        const data = await response.json();
-
-        // Ожидаем { received: "...", status: "ok" }
-        setStatus(JSON.stringify(data), "ok");
+        setStatus(status, "Ответ сервера: " + JSON.stringify(data), "ok");
         input.value = "";
         input.focus();
       } catch (err) {
-        setStatus(`Ошибка: не удалось отправить данные (${err.message})`, "err");
+        const msg = err.name === "AbortError"
+          ? "превышено время ожидания (5 с)"
+          : err.message;
+        setStatus(status, "Ошибка: " + msg, "err");
       } finally {
-        button.disabled = false;
+        btn.disabled = false;
+      }
+    });
+
+    // Enter в поле отправки — тоже отправить
+    $("textInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("submitBtn").click();
+    });
+
+    // ---------- Чтение данных ----------
+    async function readFile() {
+      const readInput  = $("readInput");
+      const fileArea   = $("fileContent");
+      const btn        = $("readBtn");
+      const metaBlock  = $("fileMeta");
+
+      btn.disabled = true;
+      readInput.value = "Загрузка...";
+
+      try {
+        const response = await fetchWithTimeout(READ_URL, { method: "GET" });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || data.status !== "ok") {
+          throw new Error(data.message || `Сервер вернул ${response.status}`);
+        }
+
+        const content = data.content || "";
+        readInput.value = "Данные успешно получены";
+        fileArea.value = content || "{Файл пуст}";
+
+        // метаданные (если бэкенд их вернул)
+        if ("lines" in data) {
+          metaBlock.hidden = false;
+          $("metaLines").textContent    = data.lines ?? "—";
+          $("metaChars").textContent    = content.length;
+          $("metaSize").textContent     = data.size_bytes ?? "—";
+          $("metaModified").textContent = data.modified
+            ? new Date(data.modified).toLocaleString("ru-RU")
+            : "—";
+        }
+      } catch (err) {
+        const msg = err.name === "AbortError"
+          ? "превышено время ожидания (5 с)"
+          : err.message;
+        readInput.value = "Ошибка: " + msg;
+        fileArea.value = "";
+        metaBlock.hidden = true;
+      } finally {
+        btn.disabled = false;
       }
     }
 
-    button.addEventListener("click", sendText);
+    $("readBtn").addEventListener("click", readFile);
 
-    // Бонус: Enter в поле — тоже отправить
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendText();
+    // ---------- Копирование содержимого в буфер ----------
+    $("copyBtn").addEventListener("click", async () => {
+      const btn = $("copyBtn");
+      const content = $("fileContent").value;
+
+      if (!content || content === "{Файл пуст}") {
+        btn.textContent = "Нечего копировать";
+        setTimeout(() => (btn.textContent = "Копировать"), 1500);
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(content);
+        btn.textContent = "Скопировано ✔";
+      } catch {
+        btn.textContent = "Не удалось";
+      }
+      setTimeout(() => (btn.textContent = "Копировать"), 1500);
     });
   </script>
 </body>
