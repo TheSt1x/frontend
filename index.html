@@ -120,7 +120,6 @@
     <p id="submitStatus" class="status"></p>
   </div>
 
-  <!-- Блок чтения -->
   <div class="block">
     <div class="block-header">
       <h2>Чтение данных из файла</h2>
@@ -149,13 +148,13 @@
 
     const $ = (id) => document.getElementById(id);
 
-    // ---------- Утилита: статус с классом ----------
+
     function setStatus(el, message, kind = "") {
       el.textContent = message;
       el.className = "status" + (kind ? " " + kind : "");
     }
 
-    // ---------- Утилита: fetch с таймаутом ----------
+
     async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -166,7 +165,6 @@
       }
     }
 
-    // ---------- Отправка данных ----------
     $("submitBtn").addEventListener("click", async () => {
       const input  = $("textInput");
       const status = $("submitStatus");
@@ -208,12 +206,11 @@
       }
     });
 
-    // Enter в поле отправки — тоже отправить
     $("textInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") $("submitBtn").click();
     });
 
-    // ---------- Чтение данных ----------
+
     async function readFile() {
       const readInput  = $("readInput");
       const fileArea   = $("fileContent");
@@ -235,7 +232,7 @@
         readInput.value = "Данные успешно получены";
         fileArea.value = content || "{Файл пуст}";
 
-        // метаданные (если бэкенд их вернул)
+
         if ("lines" in data) {
           metaBlock.hidden = false;
           $("metaLines").textContent    = data.lines ?? "—";
@@ -259,7 +256,6 @@
 
     $("readBtn").addEventListener("click", readFile);
 
-    // ---------- Копирование содержимого в буфер ----------
     $("copyBtn").addEventListener("click", async () => {
       const btn = $("copyBtn");
       const content = $("fileContent").value;
